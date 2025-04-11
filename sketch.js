@@ -6,10 +6,12 @@ const MATCH_WIDTH = 5; // Width of the matchstick in pixels
 const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
 const WIND_RADIUS = 150; // Radius of wind influence
 const WIND_STRENGTH = 10; // Maximum wind strength (increased slightly)
+const ACCELEROMETER_SENSITIVITY = 0.5; // Adjust this to control how sensitive the wind is to device movement
 
 // Track mouse movement for wind direction
 let mouseVelocity = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
+let deviceAcceleration = { x: 0, y: 0 }; // Track device acceleration
 
 // Particle systems
 let ashParticles = [];
@@ -180,7 +182,26 @@ function setup() {
   noStroke();
   startTime = millis();
   lastMousePos = { x: mouseX, y: mouseY };
-  // curveTightness(0.5); // Adjust for smoother or sharper curves in the flame
+  
+  // Request permission for device motion
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === 'granted') {
+          window.addEventListener('devicemotion', handleDeviceMotion);
+        }
+      })
+      .catch(console.error);
+  } else {
+    // Handle regular non-iOS 13+ devices
+    window.addEventListener('devicemotion', handleDeviceMotion);
+  }
+}
+
+function handleDeviceMotion(event) {
+  // Update device acceleration with sensitivity adjustment
+  deviceAcceleration.x = event.accelerationIncludingGravity.x * ACCELEROMETER_SENSITIVITY;
+  deviceAcceleration.y = event.accelerationIncludingGravity.y * ACCELEROMETER_SENSITIVITY;
 }
 
 function draw() {
@@ -340,31 +361,31 @@ function drawCharredMatch(startPoint, endPoint, progress, index, currentFlameX, 
 
 // Calculate wind influence at a point
 function getWindInfluence(x, y) {
+  // Combine mouse and device motion for wind
+  let combinedWind = createVector(0, 0);
+  
+  // Add mouse-based wind if mouse is moving
   const mouseDist = dist(x, y, mouseX, mouseY);
-  if (mouseDist > WIND_RADIUS || (mouseVelocity.x === 0 && mouseVelocity.y === 0)) {
-    return createVector(0, 0); // Use p5.Vector
+  if (mouseDist <= WIND_RADIUS && (mouseVelocity.x !== 0 || mouseVelocity.y !== 0)) {
+    const strength = map(mouseDist, 0, WIND_RADIUS, WIND_STRENGTH, 0);
+    let mouseWind = createVector(mouseVelocity.x, mouseVelocity.y);
+    mouseWind.normalize();
+    mouseWind.mult(strength);
+    combinedWind.add(mouseWind);
   }
-
-  // Wind strength falls off with distance
-  const strength = map(mouseDist, 0, WIND_RADIUS, WIND_STRENGTH, 0);
-
-  // Base wind direction on mouse velocity, normalize it
-  let windDir = createVector(mouseVelocity.x, mouseVelocity.y);
-  if (windDir.magSq() > 0) { // Avoid normalizing zero vector
-    windDir.normalize();
-  } else {
-    return createVector(0, 0); // No wind if mouse isn't moving
+  
+  // Add device motion-based wind
+  let deviceWind = createVector(deviceAcceleration.x, deviceAcceleration.y);
+  deviceWind.mult(WIND_STRENGTH);
+  combinedWind.add(deviceWind);
+  
+  // Limit the maximum wind strength
+  if (combinedWind.mag() > WIND_STRENGTH) {
+    combinedWind.normalize();
+    combinedWind.mult(WIND_STRENGTH);
   }
-
-
-  // Add some gentle horizontal sway even without mouse movement (optional)
-  // let sway = sin(frameCount * 0.02) * 0.1;
-  // windDir.x += sway;
-  // windDir.normalize(); // Re-normalize if sway is added
-
-
-  windDir.mult(strength);
-  return windDir; // Return the p5.Vector directly
+  
+  return combinedWind;
 }
 
 
