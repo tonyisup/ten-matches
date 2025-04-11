@@ -2,6 +2,36 @@ let img;
 let matchTips = []; // Array to hold the coordinates of the match tips
 let startTime; // Track when the animation started
 const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size (2 minutes)
+const MATCH_WIDTH = 5; // Width of the matchstick in pixels
+
+// Ash particle system
+let ashParticles = [];
+
+class AshParticle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.velocity = createVector(random(-0.5, 0.5), random(0.5, 1.5)); // Slight horizontal drift
+    this.lifespan = 255; // Start fully opaque
+    this.size = random(2, 4);
+  }
+
+  update() {
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+    this.lifespan -= 2; // Fade out over time
+  }
+
+  display() {
+    noStroke();
+    fill(50, 50, 50, this.lifespan); // Gray color with transparency
+    ellipse(this.x, this.y, this.size);
+  }
+
+  isDead() {
+    return this.lifespan < 0;
+  }
+}
 
 // --- IMPORTANT: Adjust these coordinates! ---
 // These are ESTIMATED coordinates based on the image appearance.
@@ -77,17 +107,69 @@ function draw() {
   if (elapsedSeconds >= GROWTH_DURATION) {
     startTime = millis();
     elapsedSeconds = 0;
+    ashParticles = []; // Clear ash particles on reset
   }
 
-  // Draw a flame on each match tip
+  // Update and display ash particles
+  for (let i = ashParticles.length - 1; i >= 0; i--) {
+    ashParticles[i].update();
+    ashParticles[i].display();
+    if (ashParticles[i].isDead()) {
+      ashParticles.splice(i, 1);
+    }
+  }
+
+  // Draw flames, charred matches, and spawn ash particles
   for (let i = 0; i < matchTips.length; i++) {
-    drawFlame(matchTips[i].x, matchTips[i].y, i, elapsedSeconds); // Pass elapsed time
+    const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, elapsedSeconds);
+    drawCharredMatch(matchTips[i], flameEndPoints[i], elapsedSeconds, i);
+    
+    // Spawn new ash particles at the flame's position
+    if (random() < 0.3) { // 30% chance each frame
+      ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+    }
   }
 
   // Optional: Display mouse coordinates to help find tip locations
   // fill(255);
   // textSize(12);
   // text(`X: ${mouseX} Y: ${mouseY}`, 10, 20);
+}
+
+function drawCharredMatch(startPoint, endPoint, elapsedSeconds, index) {
+  push();
+  
+  // Calculate progress and current end position
+  const progress = min(1, elapsedSeconds / GROWTH_DURATION);
+  const currentEndX = startPoint.x - (startPoint.x - endPoint.x) * progress;
+  const currentEndY = startPoint.y - (startPoint.y - endPoint.y) * progress;
+  
+  // Add some subtle variation to the charred line
+  const noiseOffset = index * 1000 + frameCount * 0.02;
+  const wiggle = (noise(noiseOffset) - 0.5) * 2; // -1 to 1
+  
+  // Draw the charred match
+  strokeWeight(MATCH_WIDTH);
+  stroke(30, 30, 30, 200); // Dark gray, slightly transparent
+  line(
+    startPoint.x + wiggle,
+    startPoint.y,
+    currentEndX + wiggle,
+    currentEndY
+  );
+  
+  // Add some texture to the charred part
+  noStroke();
+  for (let i = 0; i < 3; i++) {
+    const t = random(0, 1);
+    const x = lerp(startPoint.x, currentEndX, t) + wiggle;
+    const y = lerp(startPoint.y, currentEndY, t);
+    const size = random(1, MATCH_WIDTH);
+    fill(20, 20, 20, random(100, 200));
+    ellipse(x, y, size);
+  }
+  
+  pop();
 }
 
 // Function to draw an animated flame at a specific location
@@ -138,4 +220,7 @@ function drawFlame(x, y, index, elapsedSeconds) {
   ellipse(wiggleX, -coreHeight / 1.8, coreWidth, coreHeight); // Position slightly higher within outer flame
 
   pop(); // Restore previous drawing state
+
+  // Return the current flame position for ash particle spawning
+  return { x: currentX, y: currentY };
 }
