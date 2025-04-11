@@ -120,7 +120,7 @@ class SmokeParticle {
     if (gravityMag > 0) {
       // Normalize gravity vector and scale it for smoke movement
       // Invert the direction to make smoke rise against gravity
-      const gravityDir = createVector(gravityX / gravityMag, gravityY / gravityMag);
+      const gravityDir = createVector(gravityX / gravityMag, -gravityY / gravityMag);
       gravityDir.mult(2); // Adjust this value to control smoke rise speed
       this.acc.add(gravityDir);
     }
@@ -172,7 +172,7 @@ class Spark {
     this.pos.add(this.vel);
     this.lifespan -= 10; // Fade slightly faster
     this.acc.mult(0); // Reset acceleration
-    this.acc.add(0, 0.15); // Re-apply gravity
+    // this.acc.add(0, 0.15); // Re-apply gravity
   }
 
   display() {
