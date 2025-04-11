@@ -135,18 +135,20 @@ function draw() {
       drawCharredMatch(matchTips[i], flameEndPoints[i], charredMatches[i], i);
     }
     
-    // Only animate if this match's time has started
-    if (matchElapsedSeconds < GROWTH_DURATION) {
-      const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds);
-      
-      // Update charred progress
-      if (matchElapsedSeconds > 0) {
+    // Only animate if this match's time has started and hasn't completed
+    if (matchElapsedSeconds >= 0 && matchElapsedSeconds < GROWTH_DURATION) {
+      // Only show the flame if it's the current active match
+      const isCurrentMatch = floor(totalElapsedSeconds / GROWTH_DURATION) === i;
+      if (isCurrentMatch) {
+        const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds);
+        
+        // Update charred progress
         charredMatches[i] = min(1, matchElapsedSeconds / GROWTH_DURATION);
-      }
-      
-      // Spawn new ash particles at the flame's position
-      if (random() < 0.3) { // 30% chance each frame
-        ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+        
+        // Spawn new ash particles at the flame's position
+        if (random() < 0.3) { // 30% chance each frame
+          ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+        }
       }
     }
   }
