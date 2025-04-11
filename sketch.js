@@ -6,6 +6,7 @@ const MATCH_WIDTH = 5; // Width of the matchstick in pixels
 
 // Ash particle system
 let ashParticles = [];
+let charredMatches = []; // Track which matches have been charred and their progress
 
 class AshParticle {
   constructor(x, y) {
@@ -90,6 +91,7 @@ function setup() {
 
   // Copy the estimated coordinates into our working array
   matchTips = startPoints;
+  charredMatches = new Array(matchTips.length).fill(0); // Store progress instead of boolean
 
   // Set drawing properties for flames
   noStroke(); // No outlines for the flame shapes
@@ -110,6 +112,7 @@ function draw() {
   if (totalElapsedSeconds >= totalSequenceDuration) {
     startTime = millis();
     ashParticles = [];
+    charredMatches = new Array(matchTips.length).fill(0);
   }
 
   // Update and display ash particles
@@ -127,10 +130,19 @@ function draw() {
     const matchStartTime = i * GROWTH_DURATION;
     const matchElapsedSeconds = max(0, totalElapsedSeconds - matchStartTime);
     
+    // Draw charred match if it has been lit
+    if (charredMatches[i] > 0) {
+      drawCharredMatch(matchTips[i], flameEndPoints[i], charredMatches[i], i);
+    }
+    
     // Only animate if this match's time has started
     if (matchElapsedSeconds < GROWTH_DURATION) {
       const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds);
-      drawCharredMatch(matchTips[i], flameEndPoints[i], matchElapsedSeconds, i);
+      
+      // Update charred progress
+      if (matchElapsedSeconds > 0) {
+        charredMatches[i] = min(1, matchElapsedSeconds / GROWTH_DURATION);
+      }
       
       // Spawn new ash particles at the flame's position
       if (random() < 0.3) { // 30% chance each frame
@@ -145,11 +157,10 @@ function draw() {
   // text(`X: ${mouseX} Y: ${mouseY}`, 10, 20);
 }
 
-function drawCharredMatch(startPoint, endPoint, elapsedSeconds, index) {
+function drawCharredMatch(startPoint, endPoint, progress, index) {
   push();
   
-  // Calculate progress and current end position
-  const progress = min(1, elapsedSeconds / GROWTH_DURATION);
+  // Calculate current end position
   const currentEndX = startPoint.x - (startPoint.x - endPoint.x) * progress;
   const currentEndY = startPoint.y - (startPoint.y - endPoint.y) * progress;
   
