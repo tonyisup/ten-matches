@@ -1,84 +1,68 @@
 let img;
 let matchTips = []; // Array to hold the coordinates of the match tips
 let startTime; // Track when the animation started
-const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size (2 minutes)
+const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size
 const MATCH_WIDTH = 5; // Width of the matchstick in pixels
 const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
 const WIND_RADIUS = 150; // Radius of wind influence
-const WIND_STRENGTH = 2; // Maximum wind strength
+const WIND_STRENGTH = 10; // Maximum wind strength (increased slightly)
 
 // Track mouse movement for wind direction
 let mouseVelocity = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
 
-// Ash particle system
+// Particle systems
 let ashParticles = [];
-let charredMatches = []; // Track which matches have been charred and their progress
+let smokeParticles = []; // New system for smoke
 let sparks = []; // Track active sparks
+let charredMatches = []; // Track which matches have been charred and their progress
 
 // --- IMPORTANT: Adjust these coordinates! ---
-// These are ESTIMATED coordinates based on the image appearance.
-// You WILL likely need to adjust the x and y values below
-// until the flames sit perfectly on the match tips in your image.
 // Use the mouseX, mouseY coordinates displayed by p5.js (or an image editor)
 // to find the precise tip locations in YOUR image file.
-
-// Estimated coordinates assuming the image is loaded at full size.
-// Format: { x: pixelX, y: pixelY }
 const startPoints = [
   // Left Group (Approximate)
-  { x: 253, y: 360 },
-  { x: 268, y: 360 },
-  { x: 282, y: 360 },
-  { x: 297, y: 360 },
-  { x: 313, y: 350 }, // Diagonal one - slightly higher
-
+  { x: 253, y: 360 }, { x: 268, y: 360 }, { x: 282, y: 360 }, { x: 297, y: 360 }, { x: 313, y: 350 },
   // Right Group (Approximate)
-  { x: 373, y: 360 },
-  { x: 388, y: 360 },
-  { x: 402, y: 360 },
-  { x: 417, y: 360 },
-  { x: 433, y: 350 }, // Diagonal one - slightly higher
+  { x: 373, y: 360 }, { x: 388, y: 360 }, { x: 402, y: 360 }, { x: 417, y: 360 }, { x: 433, y: 350 },
 ];
 
-// Define end points for each flame (47 pixels above start)
+// Define end points for each flame (approx 40-50 pixels above start, adjust if needed)
 const flameEndPoints = [
-  // Left Group (Approximate)
-  { x: 253, y: 320 },
-  { x: 268, y: 320 },
-  { x: 282, y: 320 },
-  { x: 297, y: 320 },
-  { x: 243, y: 320 }, // Diagonal one - slightly higher
-
-  // Right Group (Approximate)
-  { x: 373, y: 320 },
-  { x: 388, y: 320 },
-  { x: 402, y: 320 },
-  { x: 417, y: 320 },
-  { x: 360, y: 320 }, // Diagonal one - slightly higher
+  // Left Group (Adjusted for better looking burn path)
+  { x: 253, y: 315 }, { x: 268, y: 315 }, { x: 282, y: 315 }, { x: 297, y: 315 }, { x: 313, y: 305 },
+  // Right Group (Adjusted for better looking burn path)
+  { x: 373, y: 315 }, { x: 388, y: 315 }, { x: 402, y: 315 }, { x: 417, y: 315 }, { x: 433, y: 305 },
 ];
-
 // --- End of Coordinate Adjustment Section ---
+
 
 class AshParticle {
   constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.velocity = createVector(random(-0.5, 0.5), random(0.5, 1.5)); // Slight horizontal drift
-    this.lifespan = 255; // Start fully opaque
-    this.size = random(2, 4);
+    this.pos = createVector(x, y);
+    this.vel = createVector(random(-0.4, 0.4), random(-0.8, -0.2)); // Slower rise
+    this.acc = createVector(0, -0.01); // Gentle upward lift initially
+    this.lifespan = 255;
+    this.size = random(1.5, 3.5);
+    this.baseGray = random(30, 60);
+  }
+
+  applyWind(wind) {
+    this.acc.add(p5.Vector.mult(wind, 0.5)); // Wind affects acceleration
   }
 
   update() {
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
-    this.lifespan -= 2; // Fade out over time
+    this.vel.add(this.acc);
+    this.pos.add(this.vel);
+    this.lifespan -= 1.5; // Fade slower
+    this.acc.mult(0); // Reset acceleration each frame before applying wind
+    this.vel.limit(1.5); // Limit speed
   }
 
   display() {
     noStroke();
-    fill(50, 50, 50, this.lifespan); // Gray color with transparency
-    ellipse(this.x, this.y, this.size);
+    fill(this.baseGray, this.lifespan);
+    ellipse(this.pos.x, this.pos.y, this.size);
   }
 
   isDead() {
@@ -86,33 +70,79 @@ class AshParticle {
   }
 }
 
-class Spark {
-  constructor(x, y, index) {
-    this.x = x;
-    this.y = y;
-    this.index = index;
-    this.velocity = { x: random(-2, 2), y: random(-4, -1) };
-    this.lifespan = 255;
-    this.size = random(1, 3);
-    this.brightness = random(200, 255);
+// New Smoke Particle class
+class SmokeParticle {
+  constructor(x, y) {
+    this.pos = createVector(x + random(-5, 5), y + random(-10, 0)); // Start slightly above/around flame tip
+    this.vel = createVector(random(-0.3, 0.3), random(-1.5, -0.8)); // Rises faster than ash
+    this.acc = createVector(0, -0.02); // Stronger initial lift
+    this.lifespan = random(150, 220); // Fade faster than ash
+    this.size = random(4, 8);
+    this.initialSize = this.size;
+    this.gray = random(150, 200);
+  }
+
+  applyWind(wind) {
+    this.acc.add(p5.Vector.mult(wind, 0.3)); // Smoke is more affected by wind
   }
 
   update() {
-    // Add wind influence to velocity
-    const wind = getWindInfluence(this.x, this.y);
-    this.velocity.x += wind.x;
-    this.velocity.y += wind.y;
-    
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
-    this.velocity.y += 0.1; // Gravity effect
-    this.lifespan -= 8;
+    this.vel.add(this.acc);
+    this.pos.add(this.vel);
+    this.lifespan -= 2.5;
+    // Grow slightly then shrink
+    let lifeRatio = this.lifespan / 220; // Approximate max lifespan
+    this.size = this.initialSize * (1 + (1 - lifeRatio) * 0.5); // Grow a bit initially
+    if (lifeRatio < 0.5) {
+      this.size *= map(lifeRatio, 0.5, 0, 1, 0.5); // Shrink towards end
+    }
+
+    this.acc.mult(0);
+    this.vel.limit(2.5);
   }
 
   display() {
     noStroke();
-    fill(255, this.brightness, 0, this.lifespan);
-    ellipse(this.x, this.y, this.size);
+    // More transparent as it fades
+    let alpha = map(this.lifespan, 0, 220, 0, 80); // Max alpha is lower for smoke
+    fill(this.gray, alpha);
+    ellipse(this.pos.x, this.pos.y, this.size);
+  }
+
+  isDead() {
+    return this.lifespan < 0;
+  }
+}
+
+
+class Spark {
+  constructor(x, y, index) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(random(-2.5, 2.5), random(-5, -2)); // More energetic
+    this.acc = createVector(0, 0.15); // Slightly stronger gravity
+    this.lifespan = 255;
+    this.size = random(1, 3.5);
+    this.brightness = random(200, 255);
+  }
+
+  applyWind(wind) {
+    this.acc.add(p5.Vector.mult(wind, 0.5)); // Sparks affected by wind
+  }
+
+  update() {
+    this.vel.add(this.acc);
+    this.pos.add(this.vel);
+    this.lifespan -= 10; // Fade slightly faster
+    this.acc.mult(0); // Reset acceleration
+    this.acc.add(0, 0.15); // Re-apply gravity
+  }
+
+  display() {
+    noStroke();
+    // Brighter, maybe slightly orange shift as it fades
+    let G = map(this.lifespan, 255, 0, this.brightness, 150);
+    fill(255, G, 0, this.lifespan);
+    ellipse(this.pos.x, this.pos.y, this.size);
   }
 
   isDead() {
@@ -121,30 +151,21 @@ class Spark {
 }
 
 function preload() {
-  // Load the image before the sketch starts
-  img = loadImage('tally_marks.png');
+  img = loadImage('tally_marks.png'); // Make sure this path is correct!
 }
 
 function setup() {
-  // Create a canvas the same size as the loaded image
   createCanvas(img.width, img.height);
-
-  // Copy the estimated coordinates into our working array
   matchTips = startPoints;
   charredMatches = new Array(matchTips.length).fill(0);
-
-  // Set drawing properties for flames
-  noStroke(); // No outlines for the flame shapes
-  
-  // Initialize start time
+  noStroke();
   startTime = millis();
-  
-  // Initialize mouse tracking
   lastMousePos = { x: mouseX, y: mouseY };
+  // curveTightness(0.5); // Adjust for smoother or sharper curves in the flame
 }
 
 function draw() {
-  // Update mouse velocity for wind direction
+  // Update mouse velocity
   const currentMousePos = { x: mouseX, y: mouseY };
   mouseVelocity = {
     x: (currentMousePos.x - lastMousePos.x) * 0.1,
@@ -152,23 +173,26 @@ function draw() {
   };
   lastMousePos = currentMousePos;
 
-  // Draw the background image each frame
+  // Draw background
   image(img, 0, 0);
 
-  // Calculate total elapsed time
   const totalElapsedSeconds = (millis() - startTime) / 1000;
-  
-  // Reset everything when the full sequence is complete
   const totalSequenceDuration = GROWTH_DURATION * matchTips.length;
+
+  // --- Reset Logic ---
   if (totalElapsedSeconds >= totalSequenceDuration) {
     startTime = millis();
     ashParticles = [];
+    smokeParticles = [];
     charredMatches = new Array(matchTips.length).fill(0);
     sparks = [];
   }
 
-  // Update and display sparks
+  // --- Update and Display Particles ---
+  // Sparks
   for (let i = sparks.length - 1; i >= 0; i--) {
+    const wind = getWindInfluence(sparks[i].pos.x, sparks[i].pos.y);
+    sparks[i].applyWind(wind);
     sparks[i].update();
     sparks[i].display();
     if (sparks[i].isDead()) {
@@ -176,8 +200,10 @@ function draw() {
     }
   }
 
-  // Update and display ash particles
+  // Ash
   for (let i = ashParticles.length - 1; i >= 0; i--) {
+    const wind = getWindInfluence(ashParticles[i].pos.x, ashParticles[i].pos.y);
+    ashParticles[i].applyWind(wind);
     ashParticles[i].update();
     ashParticles[i].display();
     if (ashParticles[i].isDead()) {
@@ -185,155 +211,290 @@ function draw() {
     }
   }
 
-  // Draw flames, charred matches, and spawn ash particles
+  // Smoke
+  for (let i = smokeParticles.length - 1; i >= 0; i--) {
+    const wind = getWindInfluence(smokeParticles[i].pos.x, smokeParticles[i].pos.y);
+    smokeParticles[i].applyWind(wind);
+    smokeParticles[i].update();
+    smokeParticles[i].display();
+    if (smokeParticles[i].isDead()) {
+      smokeParticles.splice(i, 1);
+    }
+  }
+
+
+  // --- Draw Matches and Flames ---
   for (let i = 0; i < matchTips.length; i++) {
-    // Calculate individual match elapsed time
     const matchStartTime = i * GROWTH_DURATION;
     const matchElapsedSeconds = max(0, totalElapsedSeconds - matchStartTime);
-    
-    // Draw charred match if it has been lit
-    if (charredMatches[i] > 0) {
-      drawCharredMatch(matchTips[i], flameEndPoints[i], charredMatches[i], i);
-    }
-    
-    // Only animate if this match's time has started and hasn't completed
-    if (matchElapsedSeconds >= 0 && matchElapsedSeconds < GROWTH_DURATION) {
-      // Only show the flame if it's the current active match
-      const isCurrentMatch = floor(totalElapsedSeconds / GROWTH_DURATION) === i;
-      if (isCurrentMatch) {
-        // Create sparks at the start of the animation
-        if (matchElapsedSeconds < SPARK_DURATION) {
-          if (random() < 0.5) { // 50% chance each frame during spark duration
-            sparks.push(new Spark(matchTips[i].x, matchTips[i].y, i));
-          }
-        }
+    const progress = min(1, matchElapsedSeconds / GROWTH_DURATION);
 
-        // Draw the main flame with reduced opacity during spark phase
-        const flameOpacity = matchElapsedSeconds < SPARK_DURATION ? 
-          map(matchElapsedSeconds, 0, SPARK_DURATION, 0, 1) : 1;
-        
-        const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds, flameOpacity);
-        
-        // Update charred progress
-        charredMatches[i] = min(1, matchElapsedSeconds / GROWTH_DURATION);
-        
-        // Spawn new ash particles at the flame's position (only after spark phase)
-        if (matchElapsedSeconds >= SPARK_DURATION && random() < 0.3) {
-          ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+    // Calculate current flame base position (moves from start to end point)
+    const currentBaseX = lerp(startPoints[i].x, flameEndPoints[i].x, progress);
+    const currentBaseY = lerp(startPoints[i].y, flameEndPoints[i].y, progress);
+
+    // Draw charred match first (so flame is on top)
+    if (progress > 0) {
+      drawCharredMatch(startPoints[i], flameEndPoints[i], progress, i, currentBaseX, currentBaseY);
+    }
+
+    // Only animate the flame for the *current* match
+    const isCurrentMatch = floor(totalElapsedSeconds / GROWTH_DURATION) === i;
+    if (isCurrentMatch && matchElapsedSeconds < GROWTH_DURATION) {
+
+      // Create sparks at the start
+      if (matchElapsedSeconds < SPARK_DURATION) {
+        if (random() < 0.6) { // Slightly more sparks
+          sparks.push(new Spark(currentBaseX, currentBaseY, i));
+        }
+      }
+
+      // Draw the main flame
+      const flameOpacity = matchElapsedSeconds < SPARK_DURATION ?
+        map(matchElapsedSeconds, 0, SPARK_DURATION, 0.2, 1) : 1; // Start slightly visible
+
+      const flameTipPos = drawFlame(currentBaseX, currentBaseY, i, matchElapsedSeconds, flameOpacity); // Pass current base
+
+      // Update charred progress (now handled by overall progress)
+      charredMatches[i] = progress;
+
+      // Spawn particles (only after spark phase for ash/smoke)
+      if (matchElapsedSeconds >= SPARK_DURATION) {
+        // Spawn Ash
+        if (random() < 0.15) { // Reduced rate
+          ashParticles.push(new AshParticle(currentBaseX + random(-MATCH_WIDTH / 2, MATCH_WIDTH / 2), currentBaseY + 5)); // Spawn near the base
+        }
+        // Spawn Smoke
+        if (random() < 0.4) { // More smoke than ash
+          smokeParticles.push(new SmokeParticle(flameTipPos.x, flameTipPos.y)); // Spawn near the tip
         }
       }
     }
   }
 
-  // Optional: Display mouse coordinates to help find tip locations
-  // fill(255);
-  // textSize(12);
-  // text(`X: ${mouseX} Y: ${mouseY}`, 10, 20);
+  // Optional: Display mouse coordinates
+  // fill(255); textSize(12); text(`X: ${mouseX} Y: ${mouseY}`, 10, 20);
 }
 
-function drawCharredMatch(startPoint, endPoint, progress, index) {
+
+function drawCharredMatch(startPoint, endPoint, progress, index, currentFlameX, currentFlameY) {
   push();
-  
-  // Calculate current end position
-  const currentEndX = startPoint.x - (startPoint.x - endPoint.x) * progress;
-  const currentEndY = startPoint.y - (startPoint.y - endPoint.y) * progress;
-  
-  // Add some subtle variation to the charred line
-  const noiseOffset = index * 1000 + frameCount * 0.02;
-  const wiggle = (noise(noiseOffset) - 0.5) * 2; // -1 to 1
-  
-  // Draw the charred match
+
+  // Calculate the end position of the charred section based on progress
+  const charEndX = lerp(startPoint.x, endPoint.x, progress);
+  const charEndY = lerp(startPoint.y, endPoint.y, progress);
+
+  // Add subtle wiggle based on noise
+  const noiseOffset = index * 1000 + frameCount * 0.015; // Slower wiggle
+  const wiggle = (noise(noiseOffset) - 0.5) * 2.5;
+
+  // Draw main charred line
   strokeWeight(MATCH_WIDTH);
-  stroke(30, 30, 30, 200); // Dark gray, slightly transparent
-  line(
-    startPoint.x + wiggle,
-    startPoint.y,
-    currentEndX + wiggle,
-    currentEndY
-  );
-  
-  // Add some texture to the charred part
+  stroke(30, 30, 30, 220); // Slightly darker, more opaque
+  line(startPoint.x + wiggle, startPoint.y, charEndX + wiggle, charEndY);
+
+  // Add textured flecks
   noStroke();
-  for (let i = 0; i < 3; i++) {
-    const t = random(0, 1);
-    const x = lerp(startPoint.x, currentEndX, t) + wiggle;
-    const y = lerp(startPoint.y, currentEndY, t);
-    const size = random(1, MATCH_WIDTH);
-    fill(20, 20, 20, random(100, 200));
+  const numFlecks = 5 * progress; // More flecks as it burns
+  for (let j = 0; j < numFlecks; j++) {
+    const t = random(0, progress); // Place flecks along the *charred* length
+    const x = lerp(startPoint.x, endPoint.x, t) + wiggle + random(-1, 1);
+    const y = lerp(startPoint.y, endPoint.y, t) + random(-1, 1);
+    const size = random(1, MATCH_WIDTH * 0.8);
+    fill(15 + random(15), 15 + random(15), 15 + random(15), random(100, 200));
     ellipse(x, y, size);
   }
-  
+
+  // Add subtle ember glow at the current burning tip
+  const isCurrentMatch = floor(((millis() - startTime) / 1000) / GROWTH_DURATION) === index;
+  if (progress > 0.01 && progress < 1 && isCurrentMatch) {
+    const glowSize = MATCH_WIDTH * 1.8;
+    const glowAlpha = map(sin(frameCount * 0.1 + index * 5), -1, 1, 30, 80); // Pulsing alpha
+    fill(255, 100, 0, glowAlpha);
+    ellipse(currentFlameX + wiggle, currentFlameY, glowSize, glowSize); // Position at flame base
+  }
+
+
   pop();
 }
+
 
 // Calculate wind influence at a point
 function getWindInfluence(x, y) {
   const mouseDist = dist(x, y, mouseX, mouseY);
-  if (mouseDist > WIND_RADIUS) return { x: 0, y: 0 };
-  
-  // Calculate wind strength based on distance and mouse velocity
+  if (mouseDist > WIND_RADIUS || (mouseVelocity.x === 0 && mouseVelocity.y === 0)) {
+    return createVector(0, 0); // Use p5.Vector
+  }
+
+  // Wind strength falls off with distance
   const strength = map(mouseDist, 0, WIND_RADIUS, WIND_STRENGTH, 0);
-  const angle = atan2(mouseVelocity.y, mouseVelocity.x);
-  const wind = {
-    x: cos(angle) * strength,
-    y: sin(angle) * strength
-  };
-  
-  return wind;
+
+  // Base wind direction on mouse velocity, normalize it
+  let windDir = createVector(mouseVelocity.x, mouseVelocity.y);
+  if (windDir.magSq() > 0) { // Avoid normalizing zero vector
+    windDir.normalize();
+  } else {
+    return createVector(0, 0); // No wind if mouse isn't moving
+  }
+
+
+  // Add some gentle horizontal sway even without mouse movement (optional)
+  // let sway = sin(frameCount * 0.02) * 0.1;
+  // windDir.x += sway;
+  // windDir.normalize(); // Re-normalize if sway is added
+
+
+  windDir.mult(strength);
+  return windDir; // Return the p5.Vector directly
 }
 
-// Function to draw an animated flame at a specific location
+
+// Function to draw a more realistic flame
 function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
-  push(); // Isolate transformations and styles for this flame
+  push();
+  translate(x, y); // Move origin to the match tip
 
-  // Calculate current position based on progress
   const progress = min(1, elapsedSeconds / GROWTH_DURATION);
-  const currentX = x - (x - flameEndPoints[index].x) * progress;
-  const currentY = y - (y - flameEndPoints[index].y) * progress;
-  
-  // Calculate wind influence
-  const wind = getWindInfluence(currentX, currentY);
-  
-  // Move the origin to the current position
-  translate(currentX, currentY);
+  const growthFactor = pow(progress, 0.5); // Non-linear growth, starts faster
 
-  // Calculate time-based growth factor (0 to 1)
-  const growthFactor = progress;
-  
-  // Use Perlin noise for smoother, more natural flickering
-  let noiseFactor = frameCount * 0.05; // Controls flicker speed
-  let uniqueNoise = index * 100; // Offset noise for each flame
+  // Base flame dimensions (adjust as needed)
+  let baseWidth = 4 + 8 * growthFactor;
+  let baseHeight = 15 + 30 * growthFactor;
 
-  // Base flame properties with growth
-  let baseWidth = 5 * (1 + growthFactor); // Will grow from 5 to 10
-  let baseHeight = 15 * (1 + growthFactor); // Will grow from 15 to 30
+  // Noise parameters for more complex movement
+  let timeNoise = frameCount * 0.08 + index * 10; // Base time variation + unique offset
+  let shapeNoiseSeed = index * 500;
 
-  // Calculate flickering dimensions with wind influence
-  let flameWidth = baseWidth + noise(noiseFactor + uniqueNoise) * 5 - 2.5; // Vary width
-  let flameHeight = baseHeight + noise(noiseFactor + uniqueNoise + 50) * 10 - 5; // Vary height
-  let wiggleX = noise(noiseFactor + uniqueNoise + 100) * 4 - 2 + wind.x; // Add wind influence to wiggle
+  // Get wind influence AT THE FLAME'S APPROXIMATE AVERAGE POSITION
+  // (Translate back to world coords temporarily for wind calc)
+  let avgFlameWorldX = x; // Base x
+  let avgFlameWorldY = y - baseHeight / 2; // Mid-point y
+  const wind = getWindInfluence(avgFlameWorldX, avgFlameWorldY);
 
-  // Ensure minimum size
-  flameWidth = max(1, flameWidth);
-  flameHeight = max(3, flameHeight);
+  // --- Heat Haze (Draw Behind Flame) ---
+  const hazeSegments = 5;
+  const hazeMaxOffset = 5 + 10 * growthFactor;
+  const hazeHeight = baseHeight * 1.2;
+  noFill();
+  strokeWeight(1.5);
+  for (let i = 0; i < 3; i++) { // Draw a few haze layers
+    let hazeNoise = timeNoise * 0.5 + i * 100 + shapeNoiseSeed + 50; // Slower noise for haze
+    let hazeAlpha = map(growthFactor, 0, 1, 0, 30) * opacity * (1 - i * 0.2); // Fade outer layers
+    let currentWindEffect = p5.Vector.mult(wind, 0.5 + i * 0.2); // Haze affected by wind too
 
-  // Draw outer flame with increased brightness over time
-  const baseBrightness = 100;
-  const maxBrightness = 200;
-  const currentBrightness = baseBrightness + (maxBrightness - baseBrightness) * growthFactor;
-  fill(255, currentBrightness + noise(noiseFactor + uniqueNoise + 150) * 100, 0, 200 * opacity); // Orange-ish, semi-transparent
-  // Draw slightly above the tip (y is negative) using an ellipse
-  ellipse(wiggleX, -flameHeight / 2, flameWidth, flameHeight);
+    stroke(200, 200, 255, hazeAlpha); // Very faint bluish white
+    beginShape();
+    curveVertex(currentWindEffect.x, 0); // Anchor point
+    curveVertex(currentWindEffect.x, 0); // Anchor point
 
-  // Draw inner core flame with increased brightness
-  let coreHeight = flameHeight * 0.6;
-  let coreWidth = flameWidth * 0.6;
-  const coreBrightness = 150 + (255 - 150) * growthFactor;
-  fill(255, 255, coreBrightness + noise(noiseFactor + uniqueNoise + 200) * 105, 230 * opacity); // Yellow-ish, less transparent
-  ellipse(wiggleX, -coreHeight / 1.8, coreWidth, coreHeight); // Position slightly higher within outer flame
+    for (let j = 0; j <= hazeSegments; j++) {
+      let t = j / hazeSegments;
+      let noiseX = (noise(hazeNoise + j * 0.5) - 0.5) * hazeMaxOffset * t; // Wideness varies with noise and height
+      let noiseY = (noise(hazeNoise + j * 0.5 + 10) - 0.5) * 5 * t; // Slight vertical wiggle
+      let windX = currentWindEffect.x * t * 1.5; // Wind pushes haze more at top
+      let windY = currentWindEffect.y * t;
+
+      curveVertex(noiseX + windX, -hazeHeight * t + noiseY + windY);
+    }
+    curveVertex(currentWindEffect.x * 1.5, -hazeHeight + currentWindEffect.y); // Tip influenced by wind
+    curveVertex(currentWindEffect.x * 1.5, -hazeHeight + currentWindEffect.y); // Tip influenced by wind
+    endShape();
+  }
+
+
+  // --- Flame Body ---
+  const segments = 10; // More segments for smoother curveVertex shape
+  noStroke(); // Flame itself has no stroke
+
+  // Define colors
+  const outerColor = color(255, 100 + noise(timeNoise + 10) * 120, 0, 180 * opacity); // Orange/Red, slightly varying hue
+  const midColor = color(255, 200 + noise(timeNoise + 20) * 55, 50, 210 * opacity); // Yellow/Orange
+  const innerColor = color(255, 255, 200 + noise(timeNoise + 30) * 55, 240 * opacity); // Bright Yellow/White core
+
+  // Draw layers from back to front (outer to inner)
+  drawFlameLayer(segments, baseHeight, baseWidth, timeNoise, shapeNoiseSeed, wind, outerColor, 1.0); // Outer layer (widest)
+  drawFlameLayer(segments, baseHeight * 0.85, baseWidth * 0.7, timeNoise, shapeNoiseSeed + 100, wind, midColor, 0.8); // Mid layer
+  drawFlameLayer(segments, baseHeight * 0.5, baseWidth * 0.4, timeNoise, shapeNoiseSeed + 200, wind, innerColor, 0.5); // Inner core (narrowest)
 
   pop(); // Restore previous drawing state
 
-  // Return the current flame position for ash particle spawning
-  return { x: currentX, y: currentY };
+  // Return the approximate tip position for smoke spawning
+  // Add wind influence to the base position + calculated tip offset
+  let tipNoiseX = (noise(timeNoise + segments * 0.3 + 300) - 0.5) * baseWidth * 0.8;
+  let tipWindX = wind.x * 1.5; // Strong wind effect at tip
+  let tipWindY = wind.y;
+  return { x: x + tipNoiseX + tipWindX, y: y - baseHeight + tipWindY };
+
+}
+
+function getFlameWidthScaleFactorFromSegmentIndex(widthScaleFactor, index) {
+  return widthScaleFactor * (index + 1);
+}
+// Helper function to draw a single flame layer using curveVertex
+function drawFlameLayer(segments, height, width, timeNoise, shapeNoiseSeed, wind, fillColor, widthScaleFactor = 1.0) {
+  fill(fillColor);
+  beginShape();
+
+  // Define points along the flame centerline and offset them
+  let points = [];
+  for (let i = 0; i <= segments; i++) {
+    let t = i / segments; // Normalized position along the flame height (0=base, 1=tip)
+
+    // Calculate base width at this height (tapers towards tip)
+    let currentBaseWidth = width * (1 - pow(t, 0.8)) * getFlameWidthScaleFactorFromSegmentIndex(widthScaleFactor, i);
+
+    // Noise for horizontal flickering/shape variation
+    // More noise effect towards the tip
+    let noiseX = (noise(timeNoise + i * 0.3 + shapeNoiseSeed) - 0.5) * currentBaseWidth * 0.4 * (1 + t);
+
+    // Noise for subtle vertical variation (less pronounced)
+    let noiseY = (noise(timeNoise * 1.1 + i * 0.3 + shapeNoiseSeed + 50) - 0.5) * 5 * t;
+
+    // Apply wind - stronger effect towards the tip
+    let windEffectX = wind.x * pow(t, 1.2) * 1.5; // Wind pushes tip more horizontally
+    let windEffectY = wind.y * pow(t, 1.0);      // Wind lifts/pushes tip vertically
+
+    points.push({
+      x: noiseX + windEffectX,
+      y: -height * t + noiseY + windEffectY, // Negative Y is up
+      w: currentBaseWidth // Store the width at this segment
+    });
+  }
+  // --- Define Curve Vertices ---
+  const controlPointOffset = 3; // How far below the base the control points sit - adjust if needed
+
+  // Start control point (Below the actual base)
+  curveVertex(points[0].x, points[0].y + controlPointOffset);
+
+  // Base points (Left and Right) - slightly above the absolute base for a rounder start
+  curveVertex(points[0].x - points[0].w / 2, points[0].y);
+  curveVertex(points[0].x + points[0].w / 2, points[0].y);
+
+  // Right side vertices (Iterate from base upwards)
+  for (let i = 1; i <= segments; i++) { // Start from i=1 since base (i=0) is handled
+    curveVertex(points[i].x + points[i].w / 2, points[i].y);
+  }
+
+  // Tip control point (Duplicate the last point for curveVertex)
+  curveVertex(points[segments].x, points[segments].y);
+  curveVertex(points[segments].x, points[segments].y); // Need to duplicate for the curve math
+
+  // Left side vertices (Iterate from tip downwards)
+  // Start with the tip again to anchor the left side curve correctly
+  curveVertex(points[segments].x, points[segments].y);
+  for (let i = segments; i >= 1; i--) { // Go down to i=1
+    curveVertex(points[i].x - points[i].w / 2, points[i].y);
+  }
+
+  // Connect back to the base points
+  curveVertex(points[0].x - points[0].w / 2, points[0].y); // Left base point again
+
+  // End control point (Below the actual base)
+  curveVertex(points[0].x, points[0].y + controlPointOffset);
+
+  endShape(); // Using endShape() without CLOSE might look slightly better here
+
+  // Optional: Add a small solid ellipse at the very base to ensure connection
+  fill(fillColor); // Use the same layer color
+  ellipse(points[0].x, points[0].y, points[0].w * 0.8, 5); // Small ellipse at base
 }
