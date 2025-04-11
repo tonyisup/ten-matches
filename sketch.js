@@ -12,21 +12,39 @@ const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size 
 
 // Estimated coordinates assuming the image is loaded at full size.
 // Format: { x: pixelX, y: pixelY }
-const estimatedTips = [
+const startPoints = [
   // Left Group (Approximate)
   { x: 253, y: 360 },
   { x: 268, y: 360 },
-  { x: 313, y: 350 }, // Diagonal one - slightly higher
+  { x: 282, y: 360 },
   { x: 297, y: 360 },
-  { x: 278, y: 360 }, 
+  { x: 313, y: 350 }, // Diagonal one - slightly higher
 
   // Right Group (Approximate)
   { x: 373, y: 360 },
   { x: 388, y: 360 },
-  { x: 433, y: 350 }, // Diagonal one - slightly higher
+  { x: 402, y: 360 },
   { x: 417, y: 360 },
-  { x: 398, y: 360 }, 
+  { x: 433, y: 350 }, // Diagonal one - slightly higher
 ];
+
+// Define end points for each flame (47 pixels above start)
+const flameEndPoints = [
+  // Left Group (Approximate)
+  { x: 253, y: 320 },
+  { x: 268, y: 320 },
+  { x: 282, y: 320 },
+  { x: 297, y: 320 },
+  { x: 243, y: 320 }, // Diagonal one - slightly higher
+
+  // Right Group (Approximate)
+  { x: 373, y: 320 },
+  { x: 388, y: 320 },
+  { x: 402, y: 320 },
+  { x: 417, y: 320 },
+  { x: 360, y: 320 }, // Diagonal one - slightly higher
+];
+
 // --- End of Coordinate Adjustment Section ---
 
 
@@ -41,7 +59,7 @@ function setup() {
   createCanvas(img.width, img.height);
 
   // Copy the estimated coordinates into our working array
-  matchTips = estimatedTips;
+  matchTips = startPoints;
 
   // Set drawing properties for flames
   noStroke(); // No outlines for the flame shapes
@@ -76,10 +94,16 @@ function draw() {
 function drawFlame(x, y, index, elapsedSeconds) {
   push(); // Isolate transformations and styles for this flame
 
-  translate(x, y); // Move the origin to the match tip
+  // Calculate current position based on progress
+  const progress = min(1, elapsedSeconds / GROWTH_DURATION);
+  const currentX = x - (x - flameEndPoints[index].x) * progress;
+  const currentY = y - (y - flameEndPoints[index].y) * progress;
+  
+  // Move the origin to the current position
+  translate(currentX, currentY);
 
   // Calculate time-based growth factor (0 to 1)
-  const growthFactor = min(1, elapsedSeconds / GROWTH_DURATION);
+  const growthFactor = progress;
   
   // Use Perlin noise for smoother, more natural flickering
   let noiseFactor = frameCount * 0.05; // Controls flicker speed
