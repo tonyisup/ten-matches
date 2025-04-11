@@ -168,7 +168,7 @@ class Spark {
   }
 
   update() {
-    this.vel.add(this.acc);
+    // this.vel.add(this.acc);
     this.pos.add(this.vel);
     this.lifespan -= 10; // Fade slightly faster
     this.acc.mult(0); // Reset acceleration
