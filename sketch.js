@@ -15,7 +15,7 @@ let lastMousePos = { x: 0, y: 0 };
 let deviceAcceleration = { x: 0, y: 0 }; // Track device acceleration
 let flickerStartTime = 0; // Track when flicker effect started
 let isFlickering = false; // Track if we're currently flickering
-let lastOrientation = window.orientation || 0; // Track last device orientation
+let lastOrientation = screen.orientation?.angle || 0; // Track last device orientation
 
 // Particle systems
 let ashParticles = [];
@@ -98,28 +98,40 @@ class AshParticle {
 // New Smoke Particle class
 class SmokeParticle {
   constructor(x, y) {
-    this.pos = createVector(x + random(-5, 5), y + random(-10, 0)); // Start slightly above/around flame tip
-    this.vel = createVector(random(-0.3, 0.3), random(-1.5, -0.8)); // Rises faster than ash
-    this.acc = createVector(0, -0.02); // Stronger initial lift
-    this.lifespan = random(150, 220); // Fade faster than ash
+    this.pos = createVector(x + random(-5, 5), y + random(-10, 0));
+    this.vel = createVector(random(-0.3, 0.3), random(-1.5, -0.8));
+    this.acc = createVector(0, -0.02);
+    this.lifespan = random(150, 220);
     this.size = random(4, 8);
     this.initialSize = this.size;
     this.gray = random(150, 200);
   }
 
   applyWind(wind) {
-    this.acc.add(p5.Vector.mult(wind, 0.3)); // Smoke is more affected by wind
+    this.acc.add(p5.Vector.mult(wind, 0.3));
   }
 
   update() {
+    // Get gravity direction from accelerometer
+    const gravityX = deviceAcceleration.x;
+    const gravityY = deviceAcceleration.y;
+    const gravityMag = sqrt(gravityX * gravityX + gravityY * gravityY);
+    
+    if (gravityMag > 0) {
+      // Normalize gravity vector and scale it for smoke movement
+      const gravityDir = createVector(-gravityX / gravityMag, -gravityY / gravityMag);
+      gravityDir.mult(0.02); // Adjust this value to control smoke rise speed
+      this.acc.add(gravityDir);
+    }
+
     this.vel.add(this.acc);
     this.pos.add(this.vel);
     this.lifespan -= 2.5;
-    // Grow slightly then shrink
-    let lifeRatio = this.lifespan / 220; // Approximate max lifespan
-    this.size = this.initialSize * (1 + (1 - lifeRatio) * 0.5); // Grow a bit initially
+    
+    let lifeRatio = this.lifespan / 220;
+    this.size = this.initialSize * (1 + (1 - lifeRatio) * 0.5);
     if (lifeRatio < 0.5) {
-      this.size *= map(lifeRatio, 0.5, 0, 1, 0.5); // Shrink towards end
+      this.size *= map(lifeRatio, 0.5, 0, 1, 0.5);
     }
 
     this.acc.mult(0);
@@ -211,7 +223,7 @@ function handleDeviceMotion(event) {
 }
 
 function handleDeviceOrientation(event) {
-  const currentOrientation = window.orientation || 0;
+  const currentOrientation = screen.orientation?.angle || 0;
   if (currentOrientation !== lastOrientation) {
     // Orientation changed, start flicker effect
     flickerStartTime = millis();
