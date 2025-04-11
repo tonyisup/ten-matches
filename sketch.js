@@ -121,7 +121,7 @@ class SmokeParticle {
       // Normalize gravity vector and scale it for smoke movement
       // Invert the direction to make smoke rise against gravity
       const gravityDir = createVector(gravityX / gravityMag, gravityY / gravityMag);
-      gravityDir.mult(0.2); // Adjust this value to control smoke rise speed
+      gravityDir.mult(2); // Adjust this value to control smoke rise speed
       this.acc.add(gravityDir);
     }
 
