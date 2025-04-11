@@ -1,5 +1,7 @@
 let img;
 let matchTips = []; // Array to hold the coordinates of the match tips
+let startTime; // Track when the animation started
+const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size (2 minutes)
 
 // --- IMPORTANT: Adjust these coordinates! ---
 // These are ESTIMATED coordinates based on the image appearance.
@@ -43,6 +45,9 @@ function setup() {
 
   // Set drawing properties for flames
   noStroke(); // No outlines for the flame shapes
+  
+  // Initialize start time
+  startTime = millis();
 }
 
 function draw() {
@@ -67,14 +72,17 @@ function drawFlame(x, y, index) {
 
   translate(x, y); // Move the origin to the match tip
 
+  // Calculate time-based growth factor (0 to 1)
+  const elapsedSeconds = (millis() - startTime) / 1000;
+  const growthFactor = min(1, elapsedSeconds / GROWTH_DURATION);
+  
   // Use Perlin noise for smoother, more natural flickering
-  // Use index and frameCount to make each flame flicker independently and over time
   let noiseFactor = frameCount * 0.05; // Controls flicker speed
   let uniqueNoise = index * 100; // Offset noise for each flame
 
-  // Base flame properties
-  let baseWidth = 5;
-  let baseHeight = 15;
+  // Base flame properties with growth
+  let baseWidth = 5 * (1 + growthFactor); // Will grow from 5 to 10
+  let baseHeight = 15 * (1 + growthFactor); // Will grow from 15 to 30
 
   // Calculate flickering dimensions
   let flameWidth = baseWidth + noise(noiseFactor + uniqueNoise) * 5 - 2.5; // Vary width
@@ -85,15 +93,19 @@ function drawFlame(x, y, index) {
   flameWidth = max(1, flameWidth);
   flameHeight = max(3, flameHeight);
 
-  // Draw outer flame (e.g., orange/red)
-  fill(255, 100 + noise(noiseFactor + uniqueNoise + 150) * 100, 0, 200); // Orange-ish, semi-transparent
+  // Draw outer flame with increased brightness over time
+  const baseBrightness = 100;
+  const maxBrightness = 200;
+  const currentBrightness = baseBrightness + (maxBrightness - baseBrightness) * growthFactor;
+  fill(255, currentBrightness + noise(noiseFactor + uniqueNoise + 150) * 100, 0, 200); // Orange-ish, semi-transparent
   // Draw slightly above the tip (y is negative) using an ellipse
   ellipse(wiggleX, -flameHeight / 2, flameWidth, flameHeight);
 
-  // Draw inner core flame (e.g., yellow/white)
+  // Draw inner core flame with increased brightness
   let coreHeight = flameHeight * 0.6;
   let coreWidth = flameWidth * 0.6;
-  fill(255, 255, 150 + noise(noiseFactor + uniqueNoise + 200) * 105, 230); // Yellow-ish, less transparent
+  const coreBrightness = 150 + (255 - 150) * growthFactor;
+  fill(255, 255, coreBrightness + noise(noiseFactor + uniqueNoise + 200) * 105, 230); // Yellow-ish, less transparent
   ellipse(wiggleX, -coreHeight / 1.8, coreWidth, coreHeight); // Position slightly higher within outer flame
 
   pop(); // Restore previous drawing state
