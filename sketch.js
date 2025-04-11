@@ -3,10 +3,12 @@ let matchTips = []; // Array to hold the coordinates of the match tips
 let startTime; // Track when the animation started
 const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size (2 minutes)
 const MATCH_WIDTH = 5; // Width of the matchstick in pixels
+const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
 
 // Ash particle system
 let ashParticles = [];
 let charredMatches = []; // Track which matches have been charred and their progress
+let sparks = []; // Track active sparks
 
 class AshParticle {
   constructor(x, y) {
@@ -26,6 +28,35 @@ class AshParticle {
   display() {
     noStroke();
     fill(50, 50, 50, this.lifespan); // Gray color with transparency
+    ellipse(this.x, this.y, this.size);
+  }
+
+  isDead() {
+    return this.lifespan < 0;
+  }
+}
+
+class Spark {
+  constructor(x, y, index) {
+    this.x = x;
+    this.y = y;
+    this.index = index;
+    this.velocity = createVector(random(-2, 2), random(-4, -1));
+    this.lifespan = 255;
+    this.size = random(1, 3);
+    this.brightness = random(200, 255);
+  }
+
+  update() {
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+    this.velocity.y += 0.1; // Gravity effect
+    this.lifespan -= 8;
+  }
+
+  display() {
+    noStroke();
+    fill(255, this.brightness, 0, this.lifespan);
     ellipse(this.x, this.y, this.size);
   }
 
@@ -91,7 +122,7 @@ function setup() {
 
   // Copy the estimated coordinates into our working array
   matchTips = startPoints;
-  charredMatches = new Array(matchTips.length).fill(0); // Store progress instead of boolean
+  charredMatches = new Array(matchTips.length).fill(0);
 
   // Set drawing properties for flames
   noStroke(); // No outlines for the flame shapes
@@ -113,6 +144,16 @@ function draw() {
     startTime = millis();
     ashParticles = [];
     charredMatches = new Array(matchTips.length).fill(0);
+    sparks = [];
+  }
+
+  // Update and display sparks
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    sparks[i].update();
+    sparks[i].display();
+    if (sparks[i].isDead()) {
+      sparks.splice(i, 1);
+    }
   }
 
   // Update and display ash particles
@@ -140,13 +181,24 @@ function draw() {
       // Only show the flame if it's the current active match
       const isCurrentMatch = floor(totalElapsedSeconds / GROWTH_DURATION) === i;
       if (isCurrentMatch) {
-        const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds);
+        // Create sparks at the start of the animation
+        if (matchElapsedSeconds < SPARK_DURATION) {
+          if (random() < 0.5) { // 50% chance each frame during spark duration
+            sparks.push(new Spark(matchTips[i].x, matchTips[i].y, i));
+          }
+        }
+
+        // Draw the main flame with reduced opacity during spark phase
+        const flameOpacity = matchElapsedSeconds < SPARK_DURATION ? 
+          map(matchElapsedSeconds, 0, SPARK_DURATION, 0, 1) : 1;
+        
+        const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds, flameOpacity);
         
         // Update charred progress
         charredMatches[i] = min(1, matchElapsedSeconds / GROWTH_DURATION);
         
-        // Spawn new ash particles at the flame's position
-        if (random() < 0.3) { // 30% chance each frame
+        // Spawn new ash particles at the flame's position (only after spark phase)
+        if (matchElapsedSeconds >= SPARK_DURATION && random() < 0.3) {
           ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
         }
       }
@@ -195,7 +247,7 @@ function drawCharredMatch(startPoint, endPoint, progress, index) {
 }
 
 // Function to draw an animated flame at a specific location
-function drawFlame(x, y, index, elapsedSeconds) {
+function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   push(); // Isolate transformations and styles for this flame
 
   // Calculate current position based on progress
@@ -230,7 +282,7 @@ function drawFlame(x, y, index, elapsedSeconds) {
   const baseBrightness = 100;
   const maxBrightness = 200;
   const currentBrightness = baseBrightness + (maxBrightness - baseBrightness) * growthFactor;
-  fill(255, currentBrightness + noise(noiseFactor + uniqueNoise + 150) * 100, 0, 200); // Orange-ish, semi-transparent
+  fill(255, currentBrightness + noise(noiseFactor + uniqueNoise + 150) * 100, 0, 200 * opacity); // Orange-ish, semi-transparent
   // Draw slightly above the tip (y is negative) using an ellipse
   ellipse(wiggleX, -flameHeight / 2, flameWidth, flameHeight);
 
@@ -238,7 +290,7 @@ function drawFlame(x, y, index, elapsedSeconds) {
   let coreHeight = flameHeight * 0.6;
   let coreWidth = flameWidth * 0.6;
   const coreBrightness = 150 + (255 - 150) * growthFactor;
-  fill(255, 255, coreBrightness + noise(noiseFactor + uniqueNoise + 200) * 105, 230); // Yellow-ish, less transparent
+  fill(255, 255, coreBrightness + noise(noiseFactor + uniqueNoise + 200) * 105, 230 * opacity); // Yellow-ish, less transparent
   ellipse(wiggleX, -coreHeight / 1.8, coreWidth, coreHeight); // Position slightly higher within outer flame
 
   pop(); // Restore previous drawing state
