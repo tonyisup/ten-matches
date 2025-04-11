@@ -4,66 +4,17 @@ let startTime; // Track when the animation started
 const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size (2 minutes)
 const MATCH_WIDTH = 5; // Width of the matchstick in pixels
 const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
+const WIND_RADIUS = 150; // Radius of wind influence
+const WIND_STRENGTH = 2; // Maximum wind strength
+
+// Track mouse movement for wind direction
+let mouseVelocity = { x: 0, y: 0 };
+let lastMousePos = { x: 0, y: 0 };
 
 // Ash particle system
 let ashParticles = [];
 let charredMatches = []; // Track which matches have been charred and their progress
 let sparks = []; // Track active sparks
-
-class AshParticle {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.velocity = createVector(random(-0.5, 0.5), random(0.5, 1.5)); // Slight horizontal drift
-    this.lifespan = 255; // Start fully opaque
-    this.size = random(2, 4);
-  }
-
-  update() {
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
-    this.lifespan -= 2; // Fade out over time
-  }
-
-  display() {
-    noStroke();
-    fill(50, 50, 50, this.lifespan); // Gray color with transparency
-    ellipse(this.x, this.y, this.size);
-  }
-
-  isDead() {
-    return this.lifespan < 0;
-  }
-}
-
-class Spark {
-  constructor(x, y, index) {
-    this.x = x;
-    this.y = y;
-    this.index = index;
-    this.velocity = createVector(random(-2, 2), random(-4, -1));
-    this.lifespan = 255;
-    this.size = random(1, 3);
-    this.brightness = random(200, 255);
-  }
-
-  update() {
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
-    this.velocity.y += 0.1; // Gravity effect
-    this.lifespan -= 8;
-  }
-
-  display() {
-    noStroke();
-    fill(255, this.brightness, 0, this.lifespan);
-    ellipse(this.x, this.y, this.size);
-  }
-
-  isDead() {
-    return this.lifespan < 0;
-  }
-}
 
 // --- IMPORTANT: Adjust these coordinates! ---
 // These are ESTIMATED coordinates based on the image appearance.
@@ -109,10 +60,68 @@ const flameEndPoints = [
 
 // --- End of Coordinate Adjustment Section ---
 
+class AshParticle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.velocity = createVector(random(-0.5, 0.5), random(0.5, 1.5)); // Slight horizontal drift
+    this.lifespan = 255; // Start fully opaque
+    this.size = random(2, 4);
+  }
+
+  update() {
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+    this.lifespan -= 2; // Fade out over time
+  }
+
+  display() {
+    noStroke();
+    fill(50, 50, 50, this.lifespan); // Gray color with transparency
+    ellipse(this.x, this.y, this.size);
+  }
+
+  isDead() {
+    return this.lifespan < 0;
+  }
+}
+
+class Spark {
+  constructor(x, y, index) {
+    this.x = x;
+    this.y = y;
+    this.index = index;
+    this.velocity = { x: random(-2, 2), y: random(-4, -1) };
+    this.lifespan = 255;
+    this.size = random(1, 3);
+    this.brightness = random(200, 255);
+  }
+
+  update() {
+    // Add wind influence to velocity
+    const wind = getWindInfluence(this.x, this.y);
+    this.velocity.x += wind.x;
+    this.velocity.y += wind.y;
+    
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+    this.velocity.y += 0.1; // Gravity effect
+    this.lifespan -= 8;
+  }
+
+  display() {
+    noStroke();
+    fill(255, this.brightness, 0, this.lifespan);
+    ellipse(this.x, this.y, this.size);
+  }
+
+  isDead() {
+    return this.lifespan < 0;
+  }
+}
 
 function preload() {
   // Load the image before the sketch starts
-  // Replace 'tally_marks.png' with the actual filename/path of your image
   img = loadImage('tally_marks.png');
 }
 
@@ -129,9 +138,20 @@ function setup() {
   
   // Initialize start time
   startTime = millis();
+  
+  // Initialize mouse tracking
+  lastMousePos = { x: mouseX, y: mouseY };
 }
 
 function draw() {
+  // Update mouse velocity for wind direction
+  const currentMousePos = { x: mouseX, y: mouseY };
+  mouseVelocity = {
+    x: (currentMousePos.x - lastMousePos.x) * 0.1,
+    y: (currentMousePos.y - lastMousePos.y) * 0.1
+  };
+  lastMousePos = currentMousePos;
+
   // Draw the background image each frame
   image(img, 0, 0);
 
@@ -246,6 +266,22 @@ function drawCharredMatch(startPoint, endPoint, progress, index) {
   pop();
 }
 
+// Calculate wind influence at a point
+function getWindInfluence(x, y) {
+  const mouseDist = dist(x, y, mouseX, mouseY);
+  if (mouseDist > WIND_RADIUS) return { x: 0, y: 0 };
+  
+  // Calculate wind strength based on distance and mouse velocity
+  const strength = map(mouseDist, 0, WIND_RADIUS, WIND_STRENGTH, 0);
+  const angle = atan2(mouseVelocity.y, mouseVelocity.x);
+  const wind = {
+    x: cos(angle) * strength,
+    y: sin(angle) * strength
+  };
+  
+  return wind;
+}
+
 // Function to draw an animated flame at a specific location
 function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   push(); // Isolate transformations and styles for this flame
@@ -254,6 +290,9 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   const progress = min(1, elapsedSeconds / GROWTH_DURATION);
   const currentX = x - (x - flameEndPoints[index].x) * progress;
   const currentY = y - (y - flameEndPoints[index].y) * progress;
+  
+  // Calculate wind influence
+  const wind = getWindInfluence(currentX, currentY);
   
   // Move the origin to the current position
   translate(currentX, currentY);
@@ -269,10 +308,10 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   let baseWidth = 5 * (1 + growthFactor); // Will grow from 5 to 10
   let baseHeight = 15 * (1 + growthFactor); // Will grow from 15 to 30
 
-  // Calculate flickering dimensions
+  // Calculate flickering dimensions with wind influence
   let flameWidth = baseWidth + noise(noiseFactor + uniqueNoise) * 5 - 2.5; // Vary width
   let flameHeight = baseHeight + noise(noiseFactor + uniqueNoise + 50) * 10 - 5; // Vary height
-  let wiggleX = noise(noiseFactor + uniqueNoise + 100) * 4 - 2; // Slight horizontal movement
+  let wiggleX = noise(noiseFactor + uniqueNoise + 100) * 4 - 2 + wind.x; // Add wind influence to wiggle
 
   // Ensure minimum size
   flameWidth = max(1, flameWidth);
