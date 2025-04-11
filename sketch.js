@@ -7,11 +7,15 @@ const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
 const WIND_RADIUS = 150; // Radius of wind influence
 const WIND_STRENGTH = 10; // Maximum wind strength (increased slightly)
 const ACCELEROMETER_SENSITIVITY = 0.5; // Adjust this to control how sensitive the wind is to device movement
+const FLICKER_DURATION = 1.0; // Duration of flicker effect in seconds
 
 // Track mouse movement for wind direction
 let mouseVelocity = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
 let deviceAcceleration = { x: 0, y: 0 }; // Track device acceleration
+let flickerStartTime = 0; // Track when flicker effect started
+let isFlickering = false; // Track if we're currently flickering
+let lastOrientation = window.orientation || 0; // Track last device orientation
 
 // Particle systems
 let ashParticles = [];
@@ -189,12 +193,14 @@ function setup() {
       .then(permissionState => {
         if (permissionState === 'granted') {
           window.addEventListener('devicemotion', handleDeviceMotion);
+          window.addEventListener('deviceorientation', handleDeviceOrientation);
         }
       })
       .catch(console.error);
   } else {
     // Handle regular non-iOS 13+ devices
     window.addEventListener('devicemotion', handleDeviceMotion);
+    window.addEventListener('deviceorientation', handleDeviceOrientation);
   }
 }
 
@@ -202,6 +208,16 @@ function handleDeviceMotion(event) {
   // Update device acceleration with sensitivity adjustment
   deviceAcceleration.x = event.accelerationIncludingGravity.x * ACCELEROMETER_SENSITIVITY;
   deviceAcceleration.y = event.accelerationIncludingGravity.y * ACCELEROMETER_SENSITIVITY;
+}
+
+function handleDeviceOrientation(event) {
+  const currentOrientation = window.orientation || 0;
+  if (currentOrientation !== lastOrientation) {
+    // Orientation changed, start flicker effect
+    flickerStartTime = millis();
+    isFlickering = true;
+    lastOrientation = currentOrientation;
+  }
 }
 
 function draw() {
@@ -293,7 +309,19 @@ function draw() {
       const flameOpacity = matchElapsedSeconds < SPARK_DURATION ?
         map(matchElapsedSeconds, 0, SPARK_DURATION, 0.2, 1) : 1; // Start slightly visible
 
-      const flameTipPos = drawFlame(currentBaseX, currentBaseY, i, matchElapsedSeconds, flameOpacity); // Pass current base
+      // Add flicker effect if rotating
+      let flickerOpacity = 1;
+      if (isFlickering) {
+        const flickerElapsed = (millis() - flickerStartTime) / 1000;
+        if (flickerElapsed >= FLICKER_DURATION) {
+          isFlickering = false;
+        } else {
+          // Create a random flicker pattern during rotation
+          flickerOpacity = 0.7 + 0.3 * noise(frameCount * 0.1 + i);
+        }
+      }
+
+      const flameTipPos = drawFlame(currentBaseX, currentBaseY, i, matchElapsedSeconds, flameOpacity * flickerOpacity); // Pass current base
 
       // Update charred progress (now handled by overall progress)
       charredMatches[i] = progress;
@@ -397,6 +425,18 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   const progress = min(1, elapsedSeconds / GROWTH_DURATION);
   const growthFactor = pow(progress, 0.5); // Non-linear growth, starts faster
 
+  // Add flicker effect if rotating
+  let flickerOpacity = 1;
+  if (isFlickering) {
+    const flickerElapsed = (millis() - flickerStartTime) / 1000;
+    if (flickerElapsed >= FLICKER_DURATION) {
+      isFlickering = false;
+    } else {
+      // Create a random flicker pattern during rotation
+      flickerOpacity = 0.7 + 0.3 * noise(frameCount * 0.1 + index);
+    }
+  }
+
   // Base flame dimensions (adjust as needed)
   let baseWidth = 4 + 8 * growthFactor;
   let baseHeight = 15 + 30 * growthFactor;
@@ -447,9 +487,9 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
   noStroke(); // Flame itself has no stroke
 
   // Define colors
-  const outerColor = color(255, 100 + noise(timeNoise + 10) * 120, 0, 180 * opacity); // Orange/Red, slightly varying hue
-  const midColor = color(255, 200 + noise(timeNoise + 20) * 55, 50, 210 * opacity); // Yellow/Orange
-  const innerColor = color(255, 255, 200 + noise(timeNoise + 30) * 55, 240 * opacity); // Bright Yellow/White core
+  const outerColor = color(255, 100 + noise(timeNoise + 10) * 120, 0, 180 * opacity * flickerOpacity); // Orange/Red, slightly varying hue
+  const midColor = color(255, 200 + noise(timeNoise + 20) * 55, 50, 210 * opacity * flickerOpacity); // Yellow/Orange
+  const innerColor = color(255, 255, 200 + noise(timeNoise + 30) * 55, 240 * opacity * flickerOpacity); // Bright Yellow/White core
 
   // Draw layers from back to front (outer to inner)
   drawFlameLayer(segments, baseHeight, baseWidth, timeNoise, shapeNoiseSeed, wind, outerColor, 1.0); // Outer layer (widest)
