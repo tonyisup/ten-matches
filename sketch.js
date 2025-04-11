@@ -102,12 +102,14 @@ function draw() {
   // Draw the background image each frame
   image(img, 0, 0);
 
-  // Calculate elapsed time and handle reset
-  let elapsedSeconds = (millis() - startTime) / 1000;
-  if (elapsedSeconds >= GROWTH_DURATION) {
+  // Calculate total elapsed time
+  const totalElapsedSeconds = (millis() - startTime) / 1000;
+  
+  // Reset everything when the full sequence is complete
+  const totalSequenceDuration = GROWTH_DURATION * matchTips.length;
+  if (totalElapsedSeconds >= totalSequenceDuration) {
     startTime = millis();
-    elapsedSeconds = 0;
-    ashParticles = []; // Clear ash particles on reset
+    ashParticles = [];
   }
 
   // Update and display ash particles
@@ -121,12 +123,19 @@ function draw() {
 
   // Draw flames, charred matches, and spawn ash particles
   for (let i = 0; i < matchTips.length; i++) {
-    const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, elapsedSeconds);
-    drawCharredMatch(matchTips[i], flameEndPoints[i], elapsedSeconds, i);
+    // Calculate individual match elapsed time
+    const matchStartTime = i * GROWTH_DURATION;
+    const matchElapsedSeconds = max(0, totalElapsedSeconds - matchStartTime);
     
-    // Spawn new ash particles at the flame's position
-    if (random() < 0.3) { // 30% chance each frame
-      ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+    // Only animate if this match's time has started
+    if (matchElapsedSeconds < GROWTH_DURATION) {
+      const flamePos = drawFlame(matchTips[i].x, matchTips[i].y, i, matchElapsedSeconds);
+      drawCharredMatch(matchTips[i], flameEndPoints[i], matchElapsedSeconds, i);
+      
+      // Spawn new ash particles at the flame's position
+      if (random() < 0.3) { // 30% chance each frame
+        ashParticles.push(new AshParticle(flamePos.x, flamePos.y));
+      }
     }
   }
 
