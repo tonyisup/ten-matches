@@ -157,7 +157,7 @@ class Spark {
   constructor(x, y, index) {
     this.pos = createVector(x, y);
     this.vel = createVector(random(-2.5, 2.5), random(-5, -2)); // More energetic
-    this.acc = createVector(0, 0.15); // Slightly stronger gravity
+    this.acc = createVector(0, 0); // Slightly stronger gravity
     this.lifespan = 255;
     this.size = random(1, 3.5);
     this.brightness = random(200, 255);
