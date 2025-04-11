@@ -20,19 +20,38 @@ let charredMatches = []; // Track which matches have been charred and their prog
 // --- IMPORTANT: Adjust these coordinates! ---
 // Use the mouseX, mouseY coordinates displayed by p5.js (or an image editor)
 // to find the precise tip locations in YOUR image file.
+
 const startPoints = [
   // Left Group (Approximate)
-  { x: 253, y: 360 }, { x: 268, y: 360 }, { x: 282, y: 360 }, { x: 297, y: 360 }, { x: 313, y: 350 },
+  { x: 253, y: 360 },
+  { x: 268, y: 360 },
+  { x: 282, y: 360 },
+  { x: 297, y: 360 },
+  { x: 313, y: 350 }, // Diagonal one - slightly higher
+
   // Right Group (Approximate)
-  { x: 373, y: 360 }, { x: 388, y: 360 }, { x: 402, y: 360 }, { x: 417, y: 360 }, { x: 433, y: 350 },
+  { x: 373, y: 360 },
+  { x: 388, y: 360 },
+  { x: 402, y: 360 },
+  { x: 417, y: 360 },
+  { x: 433, y: 350 }, // Diagonal one - slightly higher
 ];
 
-// Define end points for each flame (approx 40-50 pixels above start, adjust if needed)
+// Define end points for each flame (47 pixels above start)
 const flameEndPoints = [
-  // Left Group (Adjusted for better looking burn path)
-  { x: 253, y: 315 }, { x: 268, y: 315 }, { x: 282, y: 315 }, { x: 297, y: 315 }, { x: 313, y: 305 },
-  // Right Group (Adjusted for better looking burn path)
-  { x: 373, y: 315 }, { x: 388, y: 315 }, { x: 402, y: 315 }, { x: 417, y: 315 }, { x: 433, y: 305 },
+  // Left Group (Approximate)
+  { x: 253, y: 320 },
+  { x: 268, y: 320 },
+  { x: 282, y: 320 },
+  { x: 297, y: 320 },
+  { x: 243, y: 320 }, // Diagonal one - slightly higher
+
+  // Right Group (Approximate)
+  { x: 373, y: 320 },
+  { x: 388, y: 320 },
+  { x: 402, y: 320 },
+  { x: 417, y: 320 },
+  { x: 360, y: 320 }, // Diagonal one - slightly higher
 ];
 // --- End of Coordinate Adjustment Section ---
 
