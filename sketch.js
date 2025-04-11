@@ -121,7 +121,7 @@ class SmokeParticle {
       // Normalize gravity vector and scale it for smoke movement
       // Invert the direction to make smoke rise against gravity
       const gravityDir = createVector(gravityX / gravityMag, gravityY / gravityMag);
-      gravityDir.mult(0.02); // Adjust this value to control smoke rise speed
+      gravityDir.mult(0.2); // Adjust this value to control smoke rise speed
       this.acc.add(gravityDir);
     }
 
@@ -496,7 +496,7 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
 
 
   // --- Flame Body ---
-  const segments = 10; // More segments for smoother curveVertex shape
+  const segments = 20; // More segments for smoother curveVertex shape
   noStroke(); // Flame itself has no stroke
 
   // Define colors
@@ -520,9 +520,6 @@ function drawFlame(x, y, index, elapsedSeconds, opacity = 1) {
 
 }
 
-function getFlameWidthScaleFactorFromSegmentIndex(widthScaleFactor, index) {
-  return widthScaleFactor * (index + 1);
-}
 // Helper function to draw a single flame layer using curveVertex
 function drawFlameLayer(segments, height, width, timeNoise, shapeNoiseSeed, wind, fillColor, widthScaleFactor = 1.0) {
   fill(fillColor);
@@ -534,7 +531,7 @@ function drawFlameLayer(segments, height, width, timeNoise, shapeNoiseSeed, wind
     let t = i / segments; // Normalized position along the flame height (0=base, 1=tip)
 
     // Calculate base width at this height (tapers towards tip)
-    let currentBaseWidth = width * (1 - pow(t, 0.8)) * getFlameWidthScaleFactorFromSegmentIndex(widthScaleFactor, i);
+    let currentBaseWidth = width * (1 - pow(t, 0.8)) * widthScaleFactor * ((i + 1) * 1/sqrt(i + 1));
 
     // Noise for horizontal flickering/shape variation
     // More noise effect towards the tip
