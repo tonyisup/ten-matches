@@ -52,12 +52,18 @@ function setup() {
 
 function draw() {
   // Draw the background image each frame
-  
   image(img, 0, 0);
+
+  // Calculate elapsed time and handle reset
+  let elapsedSeconds = (millis() - startTime) / 1000;
+  if (elapsedSeconds >= GROWTH_DURATION) {
+    startTime = millis();
+    elapsedSeconds = 0;
+  }
 
   // Draw a flame on each match tip
   for (let i = 0; i < matchTips.length; i++) {
-    drawFlame(matchTips[i].x, matchTips[i].y, i); // Pass index for unique noise
+    drawFlame(matchTips[i].x, matchTips[i].y, i, elapsedSeconds); // Pass elapsed time
   }
 
   // Optional: Display mouse coordinates to help find tip locations
@@ -67,13 +73,12 @@ function draw() {
 }
 
 // Function to draw an animated flame at a specific location
-function drawFlame(x, y, index) {
+function drawFlame(x, y, index, elapsedSeconds) {
   push(); // Isolate transformations and styles for this flame
 
   translate(x, y); // Move the origin to the match tip
 
   // Calculate time-based growth factor (0 to 1)
-  const elapsedSeconds = (millis() - startTime) / 1000;
   const growthFactor = min(1, elapsedSeconds / GROWTH_DURATION);
   
   // Use Perlin noise for smoother, more natural flickering
