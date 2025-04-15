@@ -1,7 +1,7 @@
 let img;
 let matchTips = []; // Array to hold the coordinates of the match tips
 let startTime; // Track when the animation started
-const GROWTH_DURATION = 10; // Duration in seconds for flames to reach max size
+const GROWTH_DURATION = 1; // Duration in seconds for flames to reach max size
 const MATCH_WIDTH = 5; // Width of the matchstick in pixels
 const SPARK_DURATION = 0.5; // Duration of spark effect in seconds
 const WIND_RADIUS = 150; // Radius of wind influence
@@ -29,35 +29,35 @@ let charredMatches = []; // Track which matches have been charred and their prog
 
 const startPoints = [
   // Left Group (Approximate)
-  { x: 253, y: 360 },
-  { x: 268, y: 360 },
-  { x: 282, y: 360 },
-  { x: 297, y: 360 },
-  { x: 313, y: 350 }, // Diagonal one - slightly higher
+  { x: 20, y: 60 },
+  { x: 35, y: 60 },
+  { x: 49, y: 60 },
+  { x: 64, y: 60 },
+  { x: 80, y: 50 }, // Diagonal one - slightly higher
 
   // Right Group (Approximate)
-  { x: 373, y: 360 },
-  { x: 388, y: 360 },
-  { x: 402, y: 360 },
-  { x: 417, y: 360 },
-  { x: 433, y: 350 }, // Diagonal one - slightly higher
+  { x: 140, y: 60 },
+  { x: 155, y: 60 },
+  { x: 169, y: 60 },
+  { x: 184, y: 60 },
+  { x: 200, y: 50 }, // Diagonal one - slightly higher
 ];
 
 // Define end points for each flame (47 pixels above start)
 const flameEndPoints = [
   // Left Group (Approximate)
-  { x: 253, y: 320 },
-  { x: 268, y: 320 },
-  { x: 282, y: 320 },
-  { x: 297, y: 320 },
-  { x: 243, y: 320 }, // Diagonal one - slightly higher
+  { x: 20, y: 10 },
+  { x: 35, y: 10 },
+  { x: 49, y: 10 },
+  { x: 64, y: 10 },
+  { x: 10, y: 20 }, // Diagonal one - slightly higher
 
   // Right Group (Approximate)
-  { x: 373, y: 320 },
-  { x: 388, y: 320 },
-  { x: 402, y: 320 },
-  { x: 417, y: 320 },
-  { x: 360, y: 320 }, // Diagonal one - slightly higher
+  { x: 140, y: 10 },
+  { x: 155, y: 10 },
+  { x: 169, y: 10 },
+  { x: 184, y: 10 },
+  { x: 130, y: 20 }, // Diagonal one - slightly higher
 ];
 // --- End of Coordinate Adjustment Section ---
 
