@@ -33,31 +33,31 @@ class MatchAnimation {
       { x: 20, y: 60 },
       { x: 35, y: 60 },
       { x: 49, y: 60 },
-      { x: 64, y: 60 },
+      { x: 60, y: 60 },
       { x: 80, y: 50 },
 
       // Right Group
       { x: 140, y: 60 },
       { x: 155, y: 60 },
       { x: 169, y: 60 },
-      { x: 184, y: 60 },
-      { x: 200, y: 50 },
+      { x: 185, y: 60 },
+      { x: 200, y: 48 },
     ];
 
     this.flameEndPoints = [
       // Left Group
-      { x: 20, y: 10 },
+      { x: 22, y: 10 },
       { x: 35, y: 10 },
       { x: 49, y: 10 },
-      { x: 64, y: 10 },
-      { x: 10, y: 20 },
+      { x: 60, y: 10 },
+      { x: 10, y: 17 },
 
       // Right Group
-      { x: 140, y: 10 },
-      { x: 155, y: 10 },
-      { x: 169, y: 10 },
+      { x: 143, y: 10 },
+      { x: 157, y: 10 },
+      { x: 172, y: 10 },
       { x: 184, y: 10 },
-      { x: 130, y: 20 },
+      { x: 130, y: 16 },
     ];
   }
 
@@ -209,7 +209,7 @@ class MatchAnimation {
     const wiggle = (this.p.noise(noiseOffset) - 0.5) * 2.5;
 
     this.p.strokeWeight(this.MATCH_WIDTH);
-    this.p.stroke(30, 30, 30, 220);
+    this.p.stroke(10, 10, 10, 255);
     this.p.line(startPoint.x + wiggle, startPoint.y, charEndX + wiggle, charEndY);
 
     this.p.noStroke();
