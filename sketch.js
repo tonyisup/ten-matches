@@ -193,7 +193,8 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(img.width, img.height);
+  const canvas = createCanvas(img.width, img.height);
+  canvas.parent('canvasMain');
   matchTips = startPoints;
   charredMatches = new Array(matchTips.length).fill(0);
   noStroke();

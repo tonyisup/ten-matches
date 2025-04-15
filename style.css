@@ -1,6 +1,5 @@
 body {
   background-color: #000;
-  color: #fff;
   padding: 0;
   margin: 0;
   display: flex;
@@ -10,6 +9,21 @@ body {
   width: 100vw;
 }
 
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h2 {
+  margin-top: 0;
+  color: #333;
+}
+
 canvas {
   display: block;
+  margin: 0 auto;
 }
