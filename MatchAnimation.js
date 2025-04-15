@@ -107,11 +107,34 @@ class MatchAnimation {
   }
 
   getCurrentDayProgress() {
+    const targetDate = new Date('2025-05-05');
     const now = new Date();
+    const timeDiff = targetDate - now;
+    const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    
+    // Calculate which match should be burning based on canvas ID and days left
+    let matchIndex;
+    if (this.canvasId === 'canvas1') {
+      // Days 20-11 (10 matches)
+      matchIndex = Math.max(0, Math.min(9, 20 - daysLeft));
+    } else if (this.canvasId === 'canvas2') {
+      // Days 10-1 (10 matches)
+      matchIndex = Math.max(0, Math.min(9, 10 - daysLeft));
+    } else {
+      // Days 0-9 (10 matches)
+      matchIndex = Math.max(0, Math.min(9, daysLeft));
+    }
+    
+    // Calculate progress within the current day
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const seconds = now.getSeconds();
-    return (hours * 3600 + minutes * 60 + seconds) / (24 * 3600);
+    const dayProgress = (hours * 3600 + minutes * 60 + seconds) / (24 * 3600);
+    
+    return {
+      matchIndex,
+      dayProgress
+    };
   }
 
   draw() {
@@ -123,14 +146,13 @@ class MatchAnimation {
         this.drawCharredMatch(this.startPoints[i], this.flameEndPoints[i], 1, i, this.flameEndPoints[i].x, this.flameEndPoints[i].y);
       }
     } else if (this.state === 'burning') {
-      const dayProgress = this.getCurrentDayProgress();
-      const currentMatchIndex = Math.floor(dayProgress * this.matchTips.length);
-      const matchProgress = (dayProgress * this.matchTips.length) % 1;
+      const { matchIndex, dayProgress } = this.getCurrentDayProgress();
+      const matchProgress = dayProgress;
 
       for (let i = 0; i < this.matchTips.length; i++) {
-        if (i < currentMatchIndex) {
+        if (i < matchIndex) {
           this.drawCharredMatch(this.startPoints[i], this.flameEndPoints[i], 1, i, this.flameEndPoints[i].x, this.flameEndPoints[i].y);
-        } else if (i === currentMatchIndex) {
+        } else if (i === matchIndex) {
           const currentBaseX = this.p.lerp(this.startPoints[i].x, this.flameEndPoints[i].x, matchProgress);
           const currentBaseY = this.p.lerp(this.startPoints[i].y, this.flameEndPoints[i].y, matchProgress);
           
@@ -153,7 +175,6 @@ class MatchAnimation {
 
       this.updateParticles();
     } else if (this.state === 'unburned') {
-
       //do nothing
     }
   }
