@@ -6,7 +6,7 @@ class MatchAnimation {
     this.img = null;
     this.matchTips = [];
     this.startTime = 0;
-    this.GROWTH_DURATION = 1;
+    this.GROWTH_DURATION_factor = 1; //pretty much unused
     this.MATCH_WIDTH = 5;
     this.SPARK_DURATION = 0.5;
     this.WIND_RADIUS = 150;
@@ -137,19 +137,17 @@ class MatchAnimation {
           this.drawCharredMatch(this.startPoints[i], this.flameEndPoints[i], matchProgress, i, currentBaseX, currentBaseY);
           
           if (matchProgress > 0) {
-            const flameTipPos = this.drawFlame(currentBaseX, currentBaseY, i, matchProgress * this.GROWTH_DURATION);
+            const flameTipPos = this.drawFlame(currentBaseX, currentBaseY, i, matchProgress * this.GROWTH_DURATION_factor);
             
             if (this.p.random() < 0.15) {
-              this.ashParticles.push(new AshParticle(currentBaseX + this.p.random(-this.MATCH_WIDTH / 2, this.MATCH_WIDTH / 2), currentBaseY + 5));
+              this.ashParticles.push(new AshParticle(currentBaseX + this.p.random(-this.MATCH_WIDTH / 2, this.MATCH_WIDTH / 2), currentBaseY + 5, this.p));
             }
             if (this.p.random() < 0.4) {
-              this.smokeParticles.push(new SmokeParticle(flameTipPos.x, flameTipPos.y));
+              this.smokeParticles.push(new SmokeParticle(flameTipPos.x, flameTipPos.y, this.p, this.deviceAcceleration));
             }
           }
         } else {
-          this.p.strokeWeight(this.MATCH_WIDTH);
-          this.p.stroke(139, 69, 19);
-          this.p.line(this.startPoints[i].x, this.startPoints[i].y, this.flameEndPoints[i].x, this.flameEndPoints[i].y);
+          //do nothing
         }
       }
 
@@ -204,7 +202,7 @@ class MatchAnimation {
       this.p.ellipse(x, y, size);
     }
 
-    const isCurrentMatch = this.p.floor(((this.p.millis() - this.startTime) / 1000) / this.GROWTH_DURATION) === index;
+    const isCurrentMatch = this.p.floor(((this.p.millis() - this.startTime) / 1000) / this.GROWTH_DURATION_factor) === index;
     if (progress > 0.01 && progress < 1 && isCurrentMatch) {
       const glowSize = this.MATCH_WIDTH * 1.8;
       const glowAlpha = this.p.map(this.p.sin(this.p.frameCount * 0.1 + index * 5), -1, 1, 30, 80);
@@ -219,7 +217,7 @@ class MatchAnimation {
     this.p.push();
     this.p.translate(x, y);
 
-    const progress = this.p.min(1, elapsedSeconds / this.GROWTH_DURATION);
+    const progress = this.p.min(1, elapsedSeconds / this.GROWTH_DURATION_factor);
     const growthFactor = this.p.pow(progress, 0.5);
 
     let flickerOpacity = 1;
