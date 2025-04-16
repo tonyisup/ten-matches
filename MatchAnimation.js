@@ -116,13 +116,13 @@ class MatchAnimation {
     let matchIndex;
     if (this.canvasId === 'canvas1') {
       // Days 20-11 (10 matches)
-      matchIndex = Math.max(0, Math.min(9, 20 - daysLeft));
+      matchIndex = Math.max(0, Math.min(9, 30 - daysLeft));
     } else if (this.canvasId === 'canvas2') {
       // Days 10-1 (10 matches)
-      matchIndex = Math.max(0, Math.min(9, 10 - daysLeft));
+      matchIndex = Math.max(0, Math.min(9, 20 - daysLeft));
     } else {
       // Days 0-9 (10 matches)
-      matchIndex = Math.max(0, Math.min(9, daysLeft));
+      matchIndex = Math.max(0, Math.min(9, 10 - daysLeft));
     }
     
     // Calculate progress within the current day
